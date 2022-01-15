@@ -1,5 +1,6 @@
 import pynusmv
 import sys
+import pprint
 from pynusmv_lower_interface.nusmv.parser import parser 
 from collections import deque
 
@@ -28,7 +29,7 @@ def spec_to_bdd(model, spec):
 
 def research(fsm, bddspec):
     #seguo algoritmo
-    reach = {}
+    reach = None
     new = fsm.init
 
     while fsm.count_states(new) > 0:
@@ -36,17 +37,34 @@ def research(fsm, bddspec):
         #if fsm.count_states(notResp) > 0: #se qualcosa non rispetta
         #    return fsm.pick_one_state_random(notResp), sequence
         #sequence.append(new)
-        new = fsm.post(new) - reach
-        reach = reach + new
-    recur = reach & bddspec
-    while fsm.count_states(recur) > 0:
-        reach = {}
-        new = fsm.pre(new)
-        while fsm.count_states(new) > 0:
+        if reach:
+            new = fsm.post(new) - reach
             reach = reach + new
-            if recur.issubset(reach): return True
-            new = fsm.pre(new) - reach
+        else:
+            new = fsm.post(new)
+            reach = new
+
+
+    recur = reach & bddspec
+
+    while fsm.count_states(recur) > 0:
+        reach = None
+        new = fsm.pre(recur)
+
+        while fsm.count_states(new) > 0:
+            if reach:
+                reach = reach + new
+                if recur.entailed(reach):
+                    return True
+                new = fsm.pre(new) - reach
+            else:
+                reach = new
+                if recur.entailed(reach):
+                    return True
+                new = fsm.pre(new) - reach
+
         recur = recur & reach
+
     return False
     
 def is_boolean_formula(spec):
@@ -134,7 +152,6 @@ def check_react_spec(spec):
         return True, None
     '''
     fsm = pynusmv.glob.prop_database().master.bddFsm
-    print(spec)
     #bddspec = spec_to_bdd(fsm, spec)
 
     if parse_react(spec) == None:
@@ -143,13 +160,13 @@ def check_react_spec(spec):
 
         #bddspec = spec_to_bdd(fsm, spec)
         f, g = parse_react(spec)
+        print(f'{f},{g}')
         bddspec_f = spec_to_bdd(fsm, f)
         bddspec_g = spec_to_bdd(fsm, g)
+        gamma = bddspec_f.imply(bddspec_g)
 
-        print(f)
-        print(g)
-        
-        research(fsm, )
+
+        return research(fsm, gamma)
         #research(fsm, bddspec_f)
         #return True, reachable
 
@@ -161,9 +178,11 @@ def check_react_spec(spec):
 
 #    print("Usage:", sys.argv[0], "filename.smv")
 #    sys.exit(1)
+'''
+ORIGINALE
 
 pynusmv.init.init_nusmv()
-filename = "react_examples/mutex.smv"
+filename = sys.argv[1]
 pynusmv.glob.load_from_file(filename)
 pynusmv.glob.compute_model()
 type_ltl = pynusmv.prop.propTypes['LTL']
@@ -174,8 +193,35 @@ for prop in pynusmv.glob.prop_database():
         print("property is not LTLSPEC, skipping")
         continue
     res = check_react_spec(spec)
-    #if res == None:
-    #    print('Property is not a GR(1) formula, skipping')
+    if res == None:
+        print('Property is not a GR(1) formula, skipping')
+    if res[0] == True:
+        print("Property is respected")
+    elif res[0] == False
+        print("Property is not respected")
+        print("Counterexample:", res[1])
+
+pynusmv.init.deinit_nusmv()
+
+if len(sys.argv) != 2:
+    print("Usage:", sys.argv[0], "filename.smv")
+    sys.exit(1)
+'''
+pynusmv.init.init_nusmv()
+#filename = sys.argv[1]
+filename = 'react_examples/railroad.smv'
+pynusmv.glob.load_from_file(filename)
+pynusmv.glob.compute_model()
+type_ltl = pynusmv.prop.propTypes['LTL']
+for prop in pynusmv.glob.prop_database():
+    spec = prop.expr
+    print(spec)
+    if prop.type != type_ltl:
+        print("property is not LTLSPEC, skipping")
+        continue
+    res = check_react_spec(spec)
+    if res == None:
+        print('Property is not a GR(1) formula, skipping')
     if res == True:
         print("Property is respected")
     elif res == False:
