@@ -38,11 +38,12 @@ def research(fsm, bddspec):
         #    return fsm.pick_one_state_random(notResp), sequence
         #sequence.append(new)
         if reach:
-            new = fsm.post(new) - reach
             reach = reach + new
+            new = fsm.post(new) - reach
+
         else:
-            new = fsm.post(new)
             reach = new
+            new = fsm.post(new)
 
 
     recur = reach & bddspec
@@ -155,7 +156,7 @@ def check_react_spec(spec):
     #bddspec = spec_to_bdd(fsm, spec)
 
     if parse_react(spec) == None:
-        return False, None
+        return False
     else:
 
         #bddspec = spec_to_bdd(fsm, spec)
@@ -163,10 +164,11 @@ def check_react_spec(spec):
         print(f'{f},{g}')
         bddspec_f = spec_to_bdd(fsm, f)
         bddspec_g = spec_to_bdd(fsm, g)
-        gamma = bddspec_f.imply(bddspec_g)
+        gamma = (bddspec_f).not_().or_(bddspec_g)
 
-
-        return research(fsm, gamma)
+        sol = research(fsm, gamma)
+        print(f'soluzione: {sol}')
+        return sol
         #research(fsm, bddspec_f)
         #return True, reachable
 
@@ -174,42 +176,13 @@ def check_react_spec(spec):
 
 
 
-#if len(sys.argv) != 2:
-
-#    print("Usage:", sys.argv[0], "filename.smv")
-#    sys.exit(1)
-'''
-ORIGINALE
-
-pynusmv.init.init_nusmv()
-filename = sys.argv[1]
-pynusmv.glob.load_from_file(filename)
-pynusmv.glob.compute_model()
-type_ltl = pynusmv.prop.propTypes['LTL']
-for prop in pynusmv.glob.prop_database():
-    spec = prop.expr
-    print(spec)
-    if prop.type != type_ltl:
-        print("property is not LTLSPEC, skipping")
-        continue
-    res = check_react_spec(spec)
-    if res == None:
-        print('Property is not a GR(1) formula, skipping')
-    if res[0] == True:
-        print("Property is respected")
-    elif res[0] == False
-        print("Property is not respected")
-        print("Counterexample:", res[1])
-
-pynusmv.init.deinit_nusmv()
-
 if len(sys.argv) != 2:
     print("Usage:", sys.argv[0], "filename.smv")
     sys.exit(1)
-'''
+
 pynusmv.init.init_nusmv()
-#filename = sys.argv[1]
-filename = 'react_examples/railroad.smv'
+filename = sys.argv[1]
+#filename = 'react_examples/railroad.smv'
 pynusmv.glob.load_from_file(filename)
 pynusmv.glob.compute_model()
 type_ltl = pynusmv.prop.propTypes['LTL']
