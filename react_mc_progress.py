@@ -29,7 +29,7 @@ def spec_to_bdd(model, spec):
 
 def research(fsm, bddspec):
     #seguo algoritmo
-    reach = None
+    reach = fsm.init
     new = fsm.init
 
     while fsm.count_states(new) > 0:
@@ -37,13 +37,9 @@ def research(fsm, bddspec):
         #if fsm.count_states(notResp) > 0: #se qualcosa non rispetta
         #    return fsm.pick_one_state_random(notResp), sequence
         #sequence.append(new)
-        if reach:
-            reach = reach + new
-            new = fsm.post(new) - reach
-
-        else:
-            reach = new
-            new = fsm.post(new)
+        #if reach:
+        new = fsm.post(new) - reach
+        reach = reach + new
 
 
     recur = reach & bddspec
@@ -164,9 +160,9 @@ def check_react_spec(spec):
         print(f'{f},{g}')
         bddspec_f = spec_to_bdd(fsm, f)
         bddspec_g = spec_to_bdd(fsm, g)
-        gamma = (bddspec_f).not_().or_(bddspec_g)
-
-        sol = research(fsm, gamma)
+        gamma = ((bddspec_f).not_()).or_(bddspec_g)
+        notGamma = gamma.not_()
+        sol = research(fsm, notGamma)
         print(f'soluzione: {sol}')
         return sol
         #research(fsm, bddspec_f)
