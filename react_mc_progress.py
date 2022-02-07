@@ -27,42 +27,29 @@ def spec_to_bdd(model, spec):
     bddspec = pynusmv.mc.eval_simple_expression(model, str(spec))
     return bddspec
 
-def research(fsm, bddspec):
+def research(fsm, f, g):
     #seguo algoritmo
     reach = fsm.init
     new = fsm.init
 
     while fsm.count_states(new) > 0:
-        #notResp = new - bddspec
-        #if fsm.count_states(notResp) > 0: #se qualcosa non rispetta
-        #    return fsm.pick_one_state_random(notResp), sequence
-        #sequence.append(new)
-        #if reach:
         new = fsm.post(new) - reach
         reach = reach + new
 
-
-    recur = reach & bddspec
+    recur = reach & f & (~g)
 
     while fsm.count_states(recur) > 0:
-        reach = None
-        new = fsm.pre(recur)
+        new = fsm.pre(recur) & (~g)
+        reach = new
 
         while fsm.count_states(new) > 0:
-            if reach:
-                reach = reach + new
-                if recur.entailed(reach):
-                    return True
-                new = fsm.pre(new) - reach
-            else:
-                reach = new
-                if recur.entailed(reach):
-                    return True
-                new = fsm.pre(new) - reach
+            reach = reach + new
+            if recur.entailed(reach):
+                return False
+            new = (fsm.pre(new) - reach) & (~g)
 
         recur = recur & reach
-
-    return False
+    return True
     
 def is_boolean_formula(spec):
     """
@@ -157,13 +144,12 @@ def check_react_spec(spec):
 
         #bddspec = spec_to_bdd(fsm, spec)
         f, g = parse_react(spec)
-        print(f'{f},{g}')
+        # print(f'{f},{g}')
         bddspec_f = spec_to_bdd(fsm, f)
         bddspec_g = spec_to_bdd(fsm, g)
-        gamma = ((bddspec_f).not_()).or_(bddspec_g)
-        notGamma = gamma.not_()
-        sol = research(fsm, notGamma)
-        print(f'soluzione: {sol}')
+        
+        sol = research(fsm, bddspec_f, bddspec_g)
+        # print(f'soluzione: {sol}')
         return sol
         #research(fsm, bddspec_f)
         #return True, reachable
