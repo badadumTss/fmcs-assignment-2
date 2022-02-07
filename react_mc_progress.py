@@ -27,8 +27,36 @@ def spec_to_bdd(model, spec):
     bddspec = pynusmv.mc.eval_simple_expression(model, str(spec))
     return bddspec
 
+def compute_path(fsm, parent, current):
+    inp_set = fsm.get_inputs_between_states(parent, current)
+    inp = fsm.pick_one_inputs(inp_set)
+    return inp, current
+
+def gen_counterex(fsm, f, g, reach):
+    # greedy, uno stato qualunque in reach va bene, dato che è parte
+    # di un ciclo
+    start = fsm.pick_one_state_random(reach)
+    # uno stato potrebbe condurre a più cicli, quindi facciamo che
+    # prendiamo sempre a caso tra quelli che soddisfano la proprietà
+    # di essere nella postimmagine e in reach
+
+    nxt = fsm.pick_one_state_random(fsm.post(start) & reach)
+    seq = []
+    while nxt not in seq:
+        seq.append(nxt)
+        nxt = fsm.pick_one_state_random(fsm.post(nxt) & reach)
+    seq.append(nxt)
+    
+    path = (seq[0],)
+    for par,child in zip(seq, seq[1:]):
+        path = path + compute_path(fsm, par, child)
+
+    str_path = ()
+    for element in path:
+        str_path = str_path + (element.get_str_values(), )
+    return str_path
+
 def research(fsm, f, g):
-    #seguo algoritmo
     reach = fsm.init
     new = fsm.init
 
@@ -45,11 +73,11 @@ def research(fsm, f, g):
         while fsm.count_states(new) > 0:
             reach = reach + new
             if recur.entailed(reach):
-                return False
+                return False, gen_counterex(fsm, f, g, reach)
             new = (fsm.pre(new) - reach) & (~g)
 
         recur = recur & reach
-    return True
+    return True, None
     
 def is_boolean_formula(spec):
     """
@@ -118,44 +146,19 @@ def check_react_spec(spec):
     `spec`, that is, whether all executions of the model satisfies `spec`
     or not. 
     """
-    """
     fsm = pynusmv.glob.prop_database().master.bddFsm
-    bddspec = spec_to_bdd(fsm, spec)
-    #result = research(fsm, bddspec)
-    """
-      # ricerca per vedere se rispetta
-    # funzione che costruisce l'albero e controllo su res
-    '''
-    if node is not None:
-        path = go_back(fsm, node, reachable)  # returns tuple of nodes
-        str_path = ()
-        for element in path:
-            str_path = str_path + (element.get_str_values(),)
-        return False, str_path
-    else:
-        return True, None
-    '''
-    fsm = pynusmv.glob.prop_database().master.bddFsm
-    #bddspec = spec_to_bdd(fsm, spec)
 
     if parse_react(spec) == None:
         return False
     else:
 
-        #bddspec = spec_to_bdd(fsm, spec)
         f, g = parse_react(spec)
-        # print(f'{f},{g}')
+
         bddspec_f = spec_to_bdd(fsm, f)
         bddspec_g = spec_to_bdd(fsm, g)
         
-        sol = research(fsm, bddspec_f, bddspec_g)
-        # print(f'soluzione: {sol}')
-        return sol
-        #research(fsm, bddspec_f)
-        #return True, reachable
-
-        #return pynusmv.mc.check_explain_ltl_spec(spec)
-
+        res, counterx = research(fsm, bddspec_f, bddspec_g)
+        return res, counterx
 
 
 if len(sys.argv) != 2:
@@ -174,13 +177,13 @@ for prop in pynusmv.glob.prop_database():
     if prop.type != type_ltl:
         print("property is not LTLSPEC, skipping")
         continue
-    res = check_react_spec(spec)
+    res, counterx = check_react_spec(spec)
     if res == None:
         print('Property is not a GR(1) formula, skipping')
     if res == True:
         print("Property is respected")
     elif res == False:
         print("Property is not respected")
-        #print("Counterexample:", res[1])
+        print("Counterexample:", counterx)
 
 pynusmv.init.deinit_nusmv()
