@@ -1,5 +1,11 @@
+# created by virtualenv automatically
 bin
-include
-lib
+imgs
+Include
+Lib
 lib64
+pip-selfcheck.json
+__pycache__
 pyvenv.cfg
+Scripts
+**/output/
