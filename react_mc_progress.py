@@ -45,10 +45,10 @@ def gen_counterex(fsm, f, g, reach):
     for (s1, s2) in zip(states, states[1:]):
         inputs = fsm.get_inputs_between_states(s1, s2)
         if inputs != pynusmv.dd.BDD.false():
-            inputt = fsm.pick_one_input(inputs)
+            inputt = fsm.pick_one_inputs(inputs)
             counterex += (s1.get_str_values(), inputt.get_str_values())
         else:
-            counterex += (s1.get_str_values(), )
+            counterex += (s1.get_str_values(), {})
     counterex += (states[-1].get_str_values(), )
     return counterex
 
