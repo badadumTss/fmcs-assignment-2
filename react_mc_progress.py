@@ -33,28 +33,24 @@ def compute_path(fsm, parent, current):
     return inp, current
 
 def gen_counterex(fsm, f, g, reach):
-    # greedy, uno stato qualunque in reach va bene, dato che è parte
-    # di un ciclo
-    start = fsm.pick_one_state_random(reach)
-    # uno stato potrebbe condurre a più cicli, quindi facciamo che
-    # prendiamo sempre a caso tra quelli che soddisfano la proprietà
-    # di essere nella postimmagine e in reach
-
-    nxt = fsm.pick_one_state_random(fsm.post(start) & reach)
-    seq = []
-    while nxt not in seq:
-        seq.append(nxt)
-        nxt = fsm.pick_one_state_random(fsm.post(nxt) & reach)
-    seq.append(nxt)
-    
-    path = (seq[0],)
-    for par,child in zip(seq, seq[1:]):
-        path = path + compute_path(fsm, par, child)
-
-    str_path = ()
-    for element in path:
-        str_path = str_path + (element.get_str_values(), )
-    return str_path
+    states = []
+    while fsm.count_states(reach):
+        state = fsm.pick_one_state(reach)
+        states.append(state)
+        reach = reach - state
+    last_state = states[-1]
+    states.reverse()
+    states.append(last_state)
+    counterex = ()
+    for (s1, s2) in zip(states, states[1:]):
+        inputs = fsm.get_inputs_between_states(s1, s2)
+        if inputs != pynusmv.dd.BDD.false():
+            inputt = fsm.pick_one_input(inputs)
+            counterex += (s1.get_str_values(), inputt.get_str_values())
+        else:
+            counterex += (s1.get_str_values(), )
+    counterex += (states[-1].get_str_values(), )
+    return counterex
 
 def research(fsm, f, g):
     reach = fsm.init
