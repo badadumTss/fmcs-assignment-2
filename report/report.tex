@@ -67,6 +67,56 @@
   \[
     \square \diamondsuit f \rightarrow \square \diamondsuit g
   \]
-  first it discovers weather there's a
+  first it discovers weather the LTL formula is respected or not, then,
+  if the LTL formula is not respected provides a counterexample.
+  \section{region exploration}\label{explore}
+  The algorithm used to verify the LTL formula is the following.
+  \begin{lstlisting}[language=Python]
+  	def research(fsm, f, g):
+  	reach = fsm.init
+  	new = fsm.init
+  	while fsm.count_states(new) > 0:
+  	new = fsm.post(new) - reach
+  	reach = reach + new
+  	recur = reach & f & (~g)
+  	while fsm.count_states(recur) > 0:
+  	new = fsm.pre(recur) & (~g)
+  	reach = new
+  	while fsm.count_states(new) > 0:
+  	reach = reach + new
+  	if recur.entailed(reach):
+  	return False, gen_counterex(fsm, f, g, reach)
+  	new = (fsm.pre(new) - reach) & (~g)
+  	recur = recur & reach
+  	return True, None
+  \end{lstlisting}\label{code:reachable}
+	In this function we initialize the reachable states (for the first step just the
+	set of initital states) and the newly found states (again,
+	for the first iteration the set of initial states).
+
+	\section{Generating a counterexample}\label{back}
+	To generate a counterexample we use the following function.
+	\begin{lstlisting}[language=Python]
+		def gen_counterex(fsm, f, g, reach):
+		states = []
+		while fsm.count_states(reach):
+		state = fsm.pick_one_state(reach)
+		states.append(state)
+		reach = reach - state
+		last_state = states[-1]
+		states.reverse()
+		states.append(last_state)
+		counterex = ()
+		for (s1, s2) in zip(states, states[1:]):
+		inputs = fsm.get_inputs_between_states(s1, s2)
+		if inputs != pynusmv.dd.BDD.false():
+		inputt = fsm.pick_one_inputs(inputs)
+		counterex += (s1.get_str_values(), inputt.get_str_values())
+		else:
+		counterex += (s1.get_str_values(), {})
+		counterex += (states[-1].get_str_values(), )
+		return counterex
+	\end{lstlisting}
+	In this function we reverse the list of states because when searching for the cycling execution we have used the pre-image calculation, exploring the states backwards respect the normal execution flow.
 \end{multicols}
 \end{document}
