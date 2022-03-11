@@ -67,10 +67,20 @@
   \[
     \square \diamondsuit f \rightarrow \square \diamondsuit g
   \]
-  first it discovers weather the LTL formula is respected or not, then,
-  if the LTL formula is not respected provides a counterexample.
+  first it discovers weather the LTL formula is respected or not,
+  then, if the LTL formula is not respected provides a
+  counterexample. The first step in order to do this is to negate the
+  formula, resulting in the logic formula
+  \[
+    \square \diamondsuit f \rightarrow \diamondsuit \square \neg g
+  \]
+
+  The algorithm is divided into two functions, one that checks weather
+  there's a cycle that repeats $f$ and $\neg g$, the other, that
+  builds the cycle if there's one
   \section{region exploration}\label{explore}
-  The algorithm used to verify the LTL formula is the following.
+  To verify weather there's a cycle that respects our condition to
+  invalidate the formula is the following
   \begin{lstlisting}[language=Python]
   	def research(fsm, f, g):
   		reach = fsm.init
@@ -90,38 +100,40 @@
 			recur = recur & reach
 	  	return True, None
   \end{lstlisting}\label{code:reachable}
-	In this function we initialize the reachable states (for the first step just the
-	set of initital states) and the newly found states (again,
-	for the first iteration the set of initial states).
-	In the first while we need to compute reach.
-	We use the variable \texttt{recur} to have the potential candidates.
-	Then we iterate on \texttt{recur} with \texttt{new} that ensure at least one transition.
-	The algorithm continue with the iteration of \texttt{new} where we use \texttt{entailed} to determine if the LTL formula is violated or not. 
-	If it is violated we return False with the counterexample, otherwise we return True and we don't need the counterexample so we return None.
+  The algorithm is basically a symbolic nested search algorithm to
+  find a subset of nodes containing a cycle that invalidates our
+  original formula (or better, respects the negation of it).
 
-	\section{Generating a counterexample}\label{back}
-	To generate a counterexample we use the following function.
-	\begin{lstlisting}[language=Python]
-		def gen_counterex(fsm, f, g, reach):
-			states = []
-			while fsm.count_states(reach):
-				state = fsm.pick_one_state(reach)
-				states.append(state)
-				reach = reach - state
-			last_state = states[-1]
-			states.reverse()
-			states.append(last_state)
-			counterex = ()
-			for (s1, s2) in zip(states, states[1:]):
-				inputs = fsm.get_inputs_between_states(s1, s2)
-				if inputs != pynusmv.dd.BDD.false():
-					inputt = fsm.pick_one_inputs(inputs)
-					counterex += (s1.get_str_values(), inputt.get_str_values())
-				else:
-					counterex += (s1.get_str_values(), {})
-			counterex += (states[-1].get_str_values(), )
-			return counterex
-	\end{lstlisting}
-	In this function we reverse the list of states because when searching for the cycling execution we have used the pre-image calculation, exploring the states backwards respect the normal execution flow.
+  \section{Generating a counterexample}\label{back}
+
+  Next, building on the result of the research function, we can build
+  the counterexample for the considered transition system. We do so by
+  reversing the original list of states in the reach subset of our
+  system, since to search for the cycle we needed to use the pre-image,
+  instead of the post-image of the considered nodes, exploring the
+  state in a backwards flow.
+  \begin{lstlisting}[language=Python]
+      def gen_counterex(fsm, reach):
+      	states = []
+      	while fsm.count_states(reach):
+      		state = fsm.pick_one_state(reach)
+      		states.append(state)
+      		reach = reach - state
+      	last_state = states[-1]
+      	states.reverse()
+      	states.append(last_state)
+      	counterex = ()
+      	for (s1, s2) in zip(states, states[1:]):
+      		inputs = fsm.get_inputs_between_states(s1, s2)
+      		if inputs != pynusmv.dd.BDD.false():
+      			inputt = fsm.pick_one_inputs(inputs)
+      			counterex += (s1.get_str_values(), inputt.get_str_values())
+      		else:
+      			counterex += (s1.get_str_values(), {})
+      	counterex += (states[-1].get_str_values(), )
+      	return counterex
+  \end{lstlisting}
+  The counterexample is generated and returned to the main function
+  that displays it.
 \end{multicols}
 \end{document}

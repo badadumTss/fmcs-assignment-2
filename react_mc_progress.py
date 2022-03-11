@@ -32,7 +32,7 @@ def compute_path(fsm, parent, current):
     inp = fsm.pick_one_inputs(inp_set)
     return inp, current
 
-def gen_counterex(fsm, f, g, reach):
+def gen_counterex(fsm, reach):
     states = []
     while fsm.count_states(reach):
         state = fsm.pick_one_state(reach)
@@ -69,7 +69,7 @@ def research(fsm, f, g):
         while fsm.count_states(new) > 0:
             reach = reach + new
             if recur.entailed(reach):
-                return False, gen_counterex(fsm, f, g, reach)
+                return False, gen_counterex(fsm, reach)
             new = (fsm.pre(new) - reach) & (~g)
 
         recur = recur & reach
